@@ -1,0 +1,96 @@
+// Trigger
+
+trigger CountContactsOnAccount on Contact (after insert, after update, after delete, after undelete) {
+    //call handler for best practice
+    if(Trigger.isinsert || Trigger.isupdate || trigger.isdelete || Trigger.isundelete){
+        CountContactHandler.CountContactHelper(trigger.new, trigger.old);
+    }
+}
+
+
+// Handler
+
+public class CountContactHandler {
+    public static void CountContactHelper(List<contact> newcontact, List<contact> oldcontact){
+        set<id> accIds= new set<id>();
+        if(newcontact != null){
+            for(Contact c : newcontact){
+                if(c.AccountId!=null){
+                    accids.add(c.accountid);
+                }
+            }      
+        }
+         
+        if(oldcontact != null){
+            for(Contact c : oldcontact){
+                accids.add(c.accountid);
+            }
+        }
+         
+        List<Account> accList = [Select Id, NoofContacts__c, (Select id from Contacts) from Account where Id IN :accIds];
+         
+        if(accList!=null){
+            for(Account acc : accList){
+                acc.NoofContacts__c = acc.Contacts.size();
+            } 
+        }
+         
+        if(!accList.isEmpty()){
+            update accList;
+        }
+    } 
+}
+
+
+// Apex class for LWC
+
+public with sharing class getRecordDataController {
+
+
+  @AuraEnabled(cacheable=true)
+  public static List<Account> getAccounts() {
+    return [SELECT Id, Name, Phone FROM Account LIMIT 10];
+  }
+}
+
+// JS file
+
+import { LightningElement, track, wire} from 'lwc';
+import getAccounts from '@salesforce/apex/getRecordDataController.getAccounts';
+
+export default class GetDataDisplayData extends LightningElement {
+     @track columns = [
+          { label: 'Name', fieldName: 'Name' },
+          { label: 'Id', fieldName: 'Id'}
+      ];
+     @track accountList;
+
+     //Method 2
+     @wire (getAccounts) wiredAccounts({data,error}){
+          if (data) {
+               this.accountList = data;
+          console.log(data); 
+          } else if (error) {
+          console.log(error);
+          }
+     }
+}
+
+// Template
+
+<template>
+<div style="height: 500px;">
+<template if:true={accountList}>
+     <lightning-datatable
+             key-field="id"
+             data={accountList}
+             columns={columns}>
+     </lightning-datatable>
+</template>
+</div>
+</template>
+    
+    
+    
+    
+    
